@@ -1,4 +1,4 @@
-# Plainly — deploy guide
+# Plainly — 
 
 ## 1. Get API keys
 
