@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plainly — Plain English for official documents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2430;
+    --ink-2:#243040;
+    --paper:#F7F2E6;
+    --paper-line:#E4DCC8;
+    --teal:#2E9E96;
+    --teal-dark:#1F7A73;
+    --stamp:#C1442B;
+    --gold:#C99B3F;
+    --text-ink:#232018;
+    --text-muted:#9AA5B1;
+    --amber:#B8863B;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--ink);}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    color:var(--paper);
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 64px 0;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 24px 0;}
+
+  /* ---------- Header ---------- */
+  header{display:flex;flex-direction:column;gap:18px;margin-bottom:44px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold);
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(40px,6vw,64px);
+    line-height:0.98;
+    margin:0;
+    color:var(--paper);
+  }
+  h1 em{font-style:italic;color:var(--teal);font-weight:500;}
+  .tagline{
+    font-size:17px;line-height:1.55;color:var(--text-muted);
+    max-width:620px;
+  }
+  .context-line{
+    font-size:14px;color:var(--text-muted);
+    border-left:2px solid var(--teal);
+    padding-left:14px;max-width:640px;line-height:1.6;
+  }
+
+  /* ---------- Controls ---------- */
+  .controls{
+    display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+    margin-bottom:22px;
+  }
+  select, .run-btn, .clear-btn{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:14px;font-weight:500;
+    border-radius:3px;
+    border:1px solid rgba(247,242,230,0.25);
+    background:transparent;
+    color:var(--paper);
+    padding:10px 14px;
+    cursor:pointer;
+  }
+  select{appearance:none;min-width:240px;background:var(--ink-2);}
+  .run-btn{
+    background:var(--teal);border-color:var(--teal);color:#08201D;
+    font-weight:700;letter-spacing:.02em;
+    padding:11px 22px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .run-btn:hover:not(:disabled){background:var(--teal-dark);color:var(--paper);}
+  .run-btn:disabled{opacity:.5;cursor:not-allowed;}
+  .clear-btn:hover{border-color:rgba(247,242,230,0.6);}
+
+  textarea{
+    width:100%;min-height:120px;
+    font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.6;
+    background:var(--ink-2);color:var(--paper);
+    border:1px solid rgba(247,242,230,0.18);border-radius:4px;
+    padding:14px;resize:vertical;margin-bottom:22px;
+  }
+  textarea:focus{outline:2px solid var(--teal);outline-offset:2px;}
+
+  /* ---------- Legend ---------- */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--text-muted);margin-bottom:20px;}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  /* ---------- Split view ---------- */
+  .split{
+    display:grid;grid-template-columns:1fr 1fr;gap:20px;
+    margin-bottom:28px;
+  }
+  @media (max-width:800px){.split{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--paper);color:var(--text-ink);
+    border-radius:6px;
+    padding:26px 26px 22px;
+    position:relative;
+    min-height:280px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.28);
+  }
+  .card-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:#8a8272;margin-bottom:14px;display:block;
+  }
+  .doc-text{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13.5px;line-height:1.85;
+    white-space:pre-wrap;
+  }
+  .plain-text{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:15.5px;line-height:1.75;
+    white-space:pre-wrap;
+  }
+  mark.idiom{background:transparent;color:inherit;border-bottom:2px solid var(--stamp);text-decoration:none;}
+  mark.passive{background:transparent;color:inherit;border-bottom:2px dotted var(--amber);}
+  mark.jargon{background:rgba(46,158,150,0.16);color:inherit;border-bottom:1px solid var(--teal-dark);cursor:help;}
+  mark.longsent{background:rgba(0,0,0,0.05);}
+
+  .placeholder{color:#9d9583;font-size:14px;font-style:italic;}
+
+  /* ---------- Stamps ---------- */
+  .stamps{
+    position:absolute;top:14px;right:14px;
+    display:flex;gap:6px;
+  }
+  .stamp-mark{
+    width:34px;height:34px;border-radius:50%;
+    border:2px solid var(--stamp);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;
+    color:var(--stamp);
+    opacity:0;transform:scale(2.4) rotate(-18deg);
+    transition:opacity .25s ease, transform .35s cubic-bezier(.2,1.6,.4,1);
+  }
+  .stamp-mark.on{opacity:0.9;transform:scale(1) rotate(-12deg);}
+  .stamp-mark.verified{border-color:var(--teal-dark);color:var(--teal-dark);}
+
+  .step-status{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);
+    margin-bottom:18px;min-height:18px;
+  }
+  .step-status .dot-pulse{
+    display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--teal);margin-right:8px;
+    animation:pulse 1s infinite ease-in-out;
+  }
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+  /* ---------- Changes panel ---------- */
+  .changes{
+    background:var(--paper);color:var(--text-ink);
+    border-radius:6px;padding:24px 26px;margin-bottom:28px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.28);
+  }
+  .changes h3{
+    font-family:'Fraunces',serif;font-weight:600;font-size:20px;margin:0 0 14px;
+  }
+  .change-row{
+    display:grid;grid-template-columns:1fr 20px 1fr;gap:10px;
+    align-items:start;
+    padding:12px 0;border-top:1px solid var(--paper-line);
+    font-size:13.5px;line-height:1.55;
+  }
+  .change-row:first-of-type{border-top:none;}
+  .change-row .from{color:#8a4030;font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  .change-row .arrow{color:var(--teal-dark);text-align:center;}
+  .change-row .to{color:var(--text-ink);}
+  .change-issue{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--teal-dark);display:block;margin-bottom:3px;
+  }
+
+  /* ---------- Footer disclosure ---------- */
+  .disclosure{
+    border:1px solid rgba(247,242,230,0.18);
+    border-left:3px solid var(--gold);
+    border-radius:4px;
+    padding:22px 24px;
+    font-size:14px;line-height:1.7;color:var(--text-muted);
+  }
+  .disclosure strong{color:var(--paper);}
+  .disclosure .label{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--gold);display:block;margin-bottom:10px;
+  }
+  .error-box{
+    background:rgba(193,68,43,0.12);border:1px solid var(--stamp);color:#f0c9c0;
+    border-radius:4px;padding:14px 16px;font-size:13.5px;margin-bottom:20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <span class="eyebrow">Prototype · Plain English rewriting</span>
+    <h1>Plainly turns dense<br>official text into <em>plain English.</em></h1>
+    <p class="tagline">NZSL is New Zealand's third official language — and a completely different language from English, not English with hand signs. For many of the 3,000–4,000 Deaf New Zealanders who use it as a first language, English is a second language. Government forms, health notices and council letters are often hard to follow.</p>
+    <p class="context-line">Plainly is a best attempt at applying published plain-language accessibility research — not a verified or finished solution. It has not yet been tested with Deaf or NZSL-first readers.</p>
+  </header>
+
+  <div class="controls">
+    <select id="sampleSelect">
+      <option value="winz">Sample: Work and Income letter</option>
+      <option value="ird">Sample: IRD tax notice</option>
+      <option value="council">Sample: Council enforcement letter</option>
+      <option value="custom">Paste my own text</option>
+    </select>
+    <select id="modelSelect">
+      <option value="claude">Model: Claude Sonnet</option>
+      <option value="gemini">Model: Gemini Flash</option>
+    </select>
+    <button class="run-btn" id="runBtn">Run Plainly →</button>
+    <button class="clear-btn" id="clearBtn">Reset</button>
+  </div>
+
+  <textarea id="customInput" style="display:none;" placeholder="Paste an official document here..."></textarea>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--stamp)"></span> flagged idiom / legalese</span>
+    <span><span class="dot" style="background:var(--amber)"></span> passive voice</span>
+    <span><span class="dot" style="background:var(--teal-dark)"></span> jargon term (hover for meaning)</span>
+    <span><span class="dot" style="background:#999"></span> long sentence</span>
+  </div>
+
+  <div id="errorBox"></div>
+
+  <div class="split">
+    <div class="card">
+      <span class="card-label">Step 1 — Original, flagged</span>
+      <div class="stamps">
+        <div class="stamp-mark" id="stamp1">SCAN</div>
+      </div>
+      <div class="step-status" id="status1"></div>
+      <div class="doc-text" id="originalDoc"><span class="placeholder">Pick a sample and press "Run Plainly" to begin.</span></div>
+    </div>
+    <div class="card">
+      <span class="card-label">Steps 2–4 — Plain English</span>
+      <div class="stamps">
+        <div class="stamp-mark" id="stamp2">RW</div>
+        <div class="stamp-mark verified" id="stamp3">✓ CHK</div>
+      </div>
+      <div class="step-status" id="status2"></div>
+      <div class="plain-text" id="plainDoc"><span class="placeholder">The plain-English version will appear here.</span></div>
+    </div>
+  </div>
+
+  <div class="changes" id="changesPanel" style="display:none;">
+    <h3>What changed, and why</h3>
+    <div id="changesList"></div>
+  </div>
+
+  <div class="disclosure">
+    <span class="label">Honest limits</span>
+    Plain English is still English — it is <strong>not NZSL</strong>, and this tool does not close the access gap on its own. It's a small bridge, most useful to Deaf readers who already have some English literacy, not everyone. The necessary next step is putting Plainly in front of Deaf and NZSL-first readers to find out whether it's actually useful — that isn't something the team can claim on its own behalf.
+  </div>
+
+</div>
+
+<script>
+const GLOSSARY = {
+  "entitlement": "the money or support you're allowed to get",
+  "non-compliance": "not following the rules",
+  "assessment period": "the time period being checked",
+  "arrears": "money you owe that is overdue",
+  "determination": "an official decision",
+  "shortfall penalty": "an extra charge for underpaying tax",
+  "use-of-money interest": "extra money charged for paying late",
+  "tax position": "how you calculated what you owe",
+  "district plan": "the council's rulebook for building and land use",
+  "setback requirements": "how far a building must be from the boundary",
+  "enforcement action": "legal steps the council can take to make you follow the rules",
+  "submissions": "your written response explaining your side"
+};
+
+const IDIOMS = [
+  "pursuant to","in respect of","notwithstanding","hereinafter","in the event that",
+  "hereby","in default of","insofar as","further to","at the discretion of",
+  "without further reference to","in relation to","please be advised that",
+  "it has come to","should you wish","failing which","this notice serves to","thereon"
+];
+
+const SAMPLES = {
+  winz: `Please be advised that, pursuant to Section 12 of the Social Security Act, your entitlement has been reassessed and a non-compliance notation has been recorded against your file in respect of the assessment period ending 30 June. Should you wish to dispute this determination, you are required to submit supporting documentation within 20 working days of the date of this notice, failing which your payments may be suspended without further notice. In the event that arrears have accrued, these will be recovered via deduction from future entitlements at a rate to be determined at the discretion of the Ministry.`,
+  ird: `This notice serves to advise that, further to our review of your income tax return for the period ended 31 March, a shortfall penalty has been imposed in respect of an unacceptable tax position taken in relation to deductible expenditure claimed. You are hereby required to remit the outstanding amount, together with use-of-money interest accruing thereon, within 30 days from the date hereof, notwithstanding any objection you may subsequently lodge pursuant to Part 4A of the Tax Administration Act.`,
+  council: `It has come to the Council's attention that the structure erected on the above-mentioned property may constitute a breach of the relevant provisions of the District Plan, insofar as the setback requirements have not, in the Council's view, been complied with. Accordingly, you are hereby requested to make submissions in that regard within 15 working days, in default of which enforcement action may be initiated without further reference to yourself.`
+};
+
+const sampleSelect = document.getElementById('sampleSelect');
+const customInput = document.getElementById('customInput');
+const runBtn = document.getElementById('runBtn');
+const clearBtn = document.getElementById('clearBtn');
+const originalDoc = document.getElementById('originalDoc');
+const plainDoc = document.getElementById('plainDoc');
+const errorBox = document.getElementById('errorBox');
+const changesPanel = document.getElementById('changesPanel');
+const changesList = document.getElementById('changesList');
+const status1 = document.getElementById('status1');
+const status2 = document.getElementById('status2');
+
+sampleSelect.addEventListener('change', () => {
+  customInput.style.display = sampleSelect.value === 'custom' ? 'block' : 'none';
+});
+
+clearBtn.addEventListener('click', () => {
+  originalDoc.innerHTML = '<span class="placeholder">Pick a sample and press "Run Plainly" to begin.</span>';
+  plainDoc.innerHTML = '<span class="placeholder">The plain-English version will appear here.</span>';
+  changesPanel.style.display = 'none';
+  errorBox.innerHTML = '';
+  status1.innerHTML = ''; status2.innerHTML = '';
+  ['stamp1','stamp2','stamp3'].forEach(id => document.getElementById(id).classList.remove('on'));
+});
+
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getInputText(){
+  if (sampleSelect.value === 'custom') return customInput.value.trim();
+  return SAMPLES[sampleSelect.value];
+}
+
+// ---------- Step 1: client-side plain-language flagging ----------
+function flagText(text){
+  const issues = [];
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  sentences.forEach(s => {
+    const words = s.trim().split(/\s+/).filter(Boolean);
+    if (words.length > 25) issues.push({type:'longsent', text: s.trim()});
+  });
+  IDIOMS.forEach(idiom => {
+    const re = new RegExp(idiom.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    let m;
+    while ((m = re.exec(text)) !== null) issues.push({type:'idiom', text: m[0]});
+  });
+  const passiveRe = /\b(is|are|was|were|be|been|being|has been|have been)\s+\w+ed\b/gi;
+  let pm;
+  while ((pm = passiveRe.exec(text)) !== null) issues.push({type:'passive', text: pm[0]});
+  Object.keys(GLOSSARY).forEach(term => {
+    const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\b', 'gi');
+    let jm;
+    while ((jm = re.exec(text)) !== null) issues.push({type:'jargon', text: jm[0], term});
+  });
+  return issues;
+}
+
+function renderFlagged(text, issues){
+  // Build list of {start,end,type,term} spans, non-overlapping, longest-first priority
+  let spans = [];
+  issues.forEach(issue => {
+    if (issue.type === 'longsent') return; // handled separately by wrapping whole sentence
+    let idx = text.toLowerCase().indexOf(issue.text.toLowerCase());
+    while (idx !== -1) {
+      spans.push({start: idx, end: idx + issue.text.length, type: issue.type, term: issue.term});
+      idx = text.toLowerCase().indexOf(issue.text.toLowerCase(), idx + issue.text.length);
+    }
+  });
+  spans.sort((a,b) => a.start - b.start || (b.end-b.start) - (a.end-a.start));
+  // remove overlaps, keep first (idiom/passive take priority visually if overlapping jargon)
+  const filtered = [];
+  let lastEnd = -1;
+  spans.forEach(s => { if (s.start >= lastEnd) { filtered.push(s); lastEnd = s.end; } });
+
+  let html = '';
+  let cursor = 0;
+  filtered.forEach(s => {
+    html += escapeHtml(text.slice(cursor, s.start));
+    const chunk = escapeHtml(text.slice(s.start, s.end));
+    if (s.type === 'jargon') {
+      html += `<mark class="jargon" title="${escapeHtml(GLOSSARY[s.term] || '')}">${chunk}</mark>`;
+    } else {
+      html += `<mark class="${s.type}">${chunk}</mark>`;
+    }
+    cursor = s.end;
+  });
+  html += escapeHtml(text.slice(cursor));
+  return html;
+}
+
+// ---------- Anthropic API calls ----------
+const modelSelect = document.getElementById('modelSelect');
+
+async function callAI(systemPrompt, userText){
+  // Calls our own serverless proxy — either /api/claude or /api/gemini — which
+  // holds the real API key server-side. Both proxies return the same
+  // {content:[{text}]} shape so this parsing logic works for either provider.
+  const endpoint = modelSelect.value === 'gemini' ? "/api/gemini" : "/api/claude";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userText }]
+    })
+  });
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error("API request failed (" + endpoint + "): " + response.status + " " + errText.slice(0,200));
+  }
+  const data = await response.json();
+  const text = (data.content || []).map(b => b.text || '').join('\n');
+  const cleaned = text.replace(/```json/gi,'').replace(/```/g,'').trim();
+  return JSON.parse(cleaned);
+}
+
+function glossaryBlock(){
+  return Object.entries(GLOSSARY).map(([k,v]) => `- ${k}: ${v}`).join('\n');
+}
+
+const REWRITE_SYSTEM = `You are Plainly, a plain-English rewriting assistant for official New Zealand documents, built for Deaf New Zealanders whose first language is NZSL and for whom English is often a second language.
+
+Rewrite the given text following these rules strictly:
+- No passive voice — always name who is doing the action.
+- No idioms or legal filler phrases (e.g. "pursuant to", "notwithstanding", "hereby").
+- One idea per sentence.
+- Short sentences, aim under 18 words.
+- Plain everyday vocabulary.
+- If a legal or technical term must stay, briefly explain it in plain words right after it in brackets, the first time it appears.
+
+Use this glossary for specific terms when relevant:
+${glossaryBlock()}
+
+Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
+{"plain_text": "the full rewritten text", "changes": [{"issue": "short label like Passive voice / Idiom / Jargon / Long sentence", "original": "short original snippet", "fix": "short plain replacement"}]}
+Include 4 to 7 of the most important changes.`;
+
+const CHECK_SYSTEM = `You are Plainly's verification checker. You check a plain-English rewrite of an official NZ document against these rules: no passive voice, no idioms or legal filler, one idea per sentence, sentences under about 18 words, plain vocabulary, technical terms briefly explained inline.
+
+If you find any violations, fix them silently and return the corrected text.
+
+Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
+{"passed": true or false, "issues_found": ["short description", ...], "final_text": "the corrected final plain-English text"}`;
+
+// ---------- Orchestration ----------
+async function runPlainly(){
+  const inputText = getInputText();
+  if (!inputText) { errorBox.innerHTML = '<div class="error-box">Please choose a sample or paste some text first.</div>'; return; }
+  errorBox.innerHTML = '';
+  changesPanel.style.display = 'none';
+  runBtn.disabled = true;
+  ['stamp1','stamp2','stamp3'].forEach(id => document.getElementById(id).classList.remove('on'));
+
+  // Step 1
+  status1.innerHTML = '<span class="dot-pulse"></span>Scanning for passive voice, idioms, jargon, long sentences…';
+  const issues = flagText(inputText);
+  originalDoc.innerHTML = renderFlagged(inputText, issues);
+  document.getElementById('stamp1').classList.add('on');
+  status1.textContent = `Flagged ${issues.length} issue${issues.length===1?'':'s'} across the document.`;
+
+  plainDoc.innerHTML = '<span class="placeholder">Rewriting against the glossary…</span>';
+  status2.innerHTML = '<span class="dot-pulse"></span>Rewriting in plain English…';
+
+  try {
+    // Step 2: rewrite
+    const rewriteResult = await callAI(REWRITE_SYSTEM, inputText);
+    document.getElementById('stamp2').classList.add('on');
+    plainDoc.innerHTML = '<span class="placeholder">Checking the rewrite against the rules…</span>';
+    status2.innerHTML = '<span class="dot-pulse"></span>Checking the AI\'s own output against the rules…';
+
+    // Step 3: self-check
+    const checkResult = await callAI(CHECK_SYSTEM, rewriteResult.plain_text);
+    document.getElementById('stamp3').classList.add('on');
+
+    const finalText = checkResult.final_text || rewriteResult.plain_text;
+    plainDoc.textContent = finalText;
+    const modelLabel = modelSelect.value === 'gemini' ? 'Gemini Flash' : 'Claude Sonnet';
+    status2.textContent = (checkResult.passed
+      ? 'Passed self-check on first pass.'
+      : `Self-check found and fixed ${checkResult.issues_found ? checkResult.issues_found.length : 0} residual issue(s).`)
+      + ` — via ${modelLabel}`;
+
+    // Step 4: change summary
+    changesList.innerHTML = '';
+    (rewriteResult.changes || []).forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'change-row';
+      row.innerHTML = `<div class="from"><span class="change-issue">${escapeHtml(c.issue||'')}</span>${escapeHtml(c.original||'')}</div><div class="arrow">→</div><div class="to">${escapeHtml(c.fix||'')}</div>`;
+      changesList.appendChild(row);
+    });
+    changesPanel.style.display = 'block';
+
+  } catch (err) {
+    errorBox.innerHTML = `<div class="error-box">Plainly hit an error calling the AI pipeline: ${escapeHtml(err.message)}. Try again — network calls can occasionally fail.</div>`;
+    status2.textContent = '';
+    plainDoc.innerHTML = '<span class="placeholder">The plain-English version will appear here.</span>';
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+runBtn.addEventListener('click', runPlainly);
+</script>
+</body>
+</html>
