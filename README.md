@@ -119,3 +119,14 @@ Gemini is instructed to:
 - Wire in Claude as an optional model
 - Deploy to a hosting service
 - Test with Deaf and NZSL-first readers and revise based on their feedback
+
+
+Remove the video showing sign language (this in theory cannot work sadly and dont have great sources)
+If chosen a sample, immediately show the sample of the left box so user can see what the sample look like, and make it that user can edit those sample
+Extend the glossary to include more word, use free sources
+One line privacy notice on the page
+Check the original line on the right box
+Friendly error message
+Copy button on the output
+Remove long sentence legend
+Make a video on how the system work (personal)

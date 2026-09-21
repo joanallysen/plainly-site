@@ -134,73 +134,6 @@
 
   .placeholder{color:#9d9583;font-size:14px;font-style:italic;}
 
-  /* ---------- Clickable / hoverable plain-English sentences ---------- */
-  .plain-sentence{
-    position:relative;
-    text-decoration:none;
-    border-bottom:2px solid var(--teal-dark);
-    cursor:pointer;
-    transition:background .15s ease;
-    border-radius:2px;
-  }
-  .plain-sentence:hover, .plain-sentence:focus-visible{
-    background:rgba(46,158,150,0.14);
-    outline:none;
-  }
-
-  /* Popup shown on hover/focus, positioned above the sentence */
-  .sign-popup{
-    position:absolute;
-    left:50%;
-    bottom:calc(100% + 10px);
-    transform:translateX(-50%) translateY(4px);
-    width:190px;
-    background:var(--ink-2);
-    border:1px solid rgba(247,242,230,0.18);
-    border-radius:8px;
-    padding:10px;
-    box-shadow:0 14px 28px rgba(0,0,0,0.4);
-    opacity:0;
-    visibility:hidden;
-    pointer-events:none;
-    transition:opacity .15s ease, transform .15s ease;
-    z-index:20;
-  }
-  .plain-sentence:hover .sign-popup,
-  .plain-sentence:focus-visible .sign-popup{
-    opacity:1;
-    visibility:visible;
-    transform:translateX(-50%) translateY(0);
-  }
-  .sign-popup::after{
-    content:"";
-    position:absolute;
-    top:100%;left:50%;
-    transform:translateX(-50%);
-    border:6px solid transparent;
-    border-top-color:var(--ink-2);
-  }
-  .sign-video-frame{
-    width:100%;
-    aspect-ratio:4/3;
-    background:
-      repeating-linear-gradient(45deg, rgba(247,242,230,0.05) 0 8px, transparent 8px 16px),
-      var(--ink);
-    border:1px dashed rgba(247,242,230,0.3);
-    border-radius:6px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin-bottom:8px;
-  }
-  .sign-video-frame svg{width:38px;height:38px;color:var(--teal);}
-  .sign-popup-caption{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:10px;letter-spacing:.03em;
-    color:var(--text-muted);
-    text-align:center;
-    line-height:1.4;
-  }
 
   /* ---------- Stamps ---------- */
   .stamps{
@@ -485,18 +418,6 @@ function renderFlagged(text, issues){
   html += escapeHtml(text.slice(cursor));
   return html;
 }
-
-// ---------- Sentence-level hover popup (placeholder NZSL video, styling only) ----------
-const SIGN_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V6a2 2 0 0 1 4 0v5"/><path d="M11 11V4a2 2 0 0 1 4 0v7"/><path d="M15 11V6a2 2 0 0 1 4 0v7"/><path d="M19 11v3a7 7 0 0 1-14 0v-1.5L3.5 9.8a1.6 1.6 0 0 1 2.2-2.3L7 9"/></svg>`;
-
-function renderPlainSentences(text){
-  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-  return sentences.map((s, i) => {
-    const safe = escapeHtml(s.trim());
-    return `<span class="plain-sentence" tabindex="0" data-index="${i}">${safe} <span class="sign-popup"><span class="sign-video-frame">${SIGN_ICON_SVG}</span><span class="sign-popup-caption">NZSL video</span></span></span>`;
-  }).join(' ');
-}
-
 // ---------- API calls ----------
 async function callAI(systemPrompt, userText){
   // Calls our own /api/gemini serverless proxy, which holds the real API
@@ -579,11 +500,11 @@ async function runPlainly(){
     document.getElementById('stamp3').classList.add('on');
 
     const finalText = checkResult.final_text || rewriteResult.plain_text;
-    plainDoc.innerHTML = renderPlainSentences(finalText);
+    plainDoc.textContent = finalText;
     status2.textContent = (checkResult.passed
       ? 'Passed self-check on first pass.'
       : `Self-check found and fixed ${checkResult.issues_found ? checkResult.issues_found.length : 0} residual issue(s).`)
-      + ' — via Gemini Flash · hover a sentence for its NZSL clip';
+      + ' — via Gemini Flash-Lite';
 
     // Step 4: change summary
     changesList.innerHTML = '';
