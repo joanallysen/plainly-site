@@ -84,7 +84,8 @@
   .clear-btn:hover{border-color:rgba(247,242,230,0.6);}
 
   textarea{
-    width:100%;min-height:120px;
+    width:100%;
+    min-height:200px;
     font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.6;
     background:var(--ink-2);color:var(--paper);
     border:1px solid rgba(247,242,230,0.18);border-radius:4px;
@@ -229,7 +230,7 @@
     <button class="clear-btn" id="clearBtn">Reset</button>
   </div>
 
-  <textarea id="customInput" style="display:none;" placeholder="Paste an official document here..."></textarea>
+  <textarea id="customInput" placeholder="Paste an official document here, or edit the sample..."></textarea>
 
   <div class="legend">
     <span><span class="dot" style="background:var(--stamp)"></span> flagged idiom / legalese</span>
@@ -320,8 +321,9 @@ function escapeHtml(str){
 }
 
 sampleSelect.addEventListener('change', () => {
-  customInput.style.display = sampleSelect.value === 'custom' ? 'block' : 'none';
+  customInput.value = sampleSelect.value === 'custom' ? '' : SAMPLES[sampleSelect.value];
 });
+sampleSelect.dispatchEvent(new Event('change'));
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -360,8 +362,7 @@ clearBtn.addEventListener('click', () => {
 });
 
 function getInputText(){
-  if (sampleSelect.value === 'custom') return customInput.value.trim();
-  return SAMPLES[sampleSelect.value];
+  return customInput.value.trim();
 }
 
 // ---------- Step 1: client-side plain-language flagging ----------
