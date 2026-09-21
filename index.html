@@ -6,6 +6,7 @@
 <title>Plainly — Plain English for official documents</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
     --ink:#1B2430;
@@ -133,6 +134,74 @@
 
   .placeholder{color:#9d9583;font-size:14px;font-style:italic;}
 
+  /* ---------- Clickable / hoverable plain-English sentences ---------- */
+  .plain-sentence{
+    position:relative;
+    text-decoration:none;
+    border-bottom:2px solid var(--teal-dark);
+    cursor:pointer;
+    transition:background .15s ease;
+    border-radius:2px;
+  }
+  .plain-sentence:hover, .plain-sentence:focus-visible{
+    background:rgba(46,158,150,0.14);
+    outline:none;
+  }
+
+  /* Popup shown on hover/focus, positioned above the sentence */
+  .sign-popup{
+    position:absolute;
+    left:50%;
+    bottom:calc(100% + 10px);
+    transform:translateX(-50%) translateY(4px);
+    width:190px;
+    background:var(--ink-2);
+    border:1px solid rgba(247,242,230,0.18);
+    border-radius:8px;
+    padding:10px;
+    box-shadow:0 14px 28px rgba(0,0,0,0.4);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .15s ease, transform .15s ease;
+    z-index:20;
+  }
+  .plain-sentence:hover .sign-popup,
+  .plain-sentence:focus-visible .sign-popup{
+    opacity:1;
+    visibility:visible;
+    transform:translateX(-50%) translateY(0);
+  }
+  .sign-popup::after{
+    content:"";
+    position:absolute;
+    top:100%;left:50%;
+    transform:translateX(-50%);
+    border:6px solid transparent;
+    border-top-color:var(--ink-2);
+  }
+  .sign-video-frame{
+    width:100%;
+    aspect-ratio:4/3;
+    background:
+      repeating-linear-gradient(45deg, rgba(247,242,230,0.05) 0 8px, transparent 8px 16px),
+      var(--ink);
+    border:1px dashed rgba(247,242,230,0.3);
+    border-radius:6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:8px;
+  }
+  .sign-video-frame svg{width:38px;height:38px;color:var(--teal);}
+  .sign-popup-caption{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;letter-spacing:.03em;
+    color:var(--text-muted);
+    text-align:center;
+    line-height:1.4;
+  }
+
   /* ---------- Stamps ---------- */
   .stamps{
     position:absolute;top:14px;right:14px;
@@ -221,10 +290,8 @@
       <option value="council">Sample: Council enforcement letter</option>
       <option value="custom">Paste my own text</option>
     </select>
-    <select id="modelSelect">
-      <option value="claude">Model: Claude Sonnet</option>
-      <option value="gemini">Model: Gemini Flash</option>
-    </select>
+    <input type="file" id="pdfInput" accept="application/pdf" style="display:none;">
+    <button class="clear-btn" id="pdfBtn">Upload PDF</button>
     <button class="run-btn" id="runBtn">Run Plainly →</button>
     <button class="clear-btn" id="clearBtn">Reset</button>
   </div>
@@ -312,9 +379,42 @@ const changesPanel = document.getElementById('changesPanel');
 const changesList = document.getElementById('changesList');
 const status1 = document.getElementById('status1');
 const status2 = document.getElementById('status2');
+const pdfInput = document.getElementById('pdfInput');
+const pdfBtn = document.getElementById('pdfBtn');
+
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 sampleSelect.addEventListener('change', () => {
   customInput.style.display = sampleSelect.value === 'custom' ? 'block' : 'none';
+});
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+pdfBtn.addEventListener('click', () => pdfInput.click());
+pdfInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pdfBtn.textContent = 'Reading PDF…';
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    sampleSelect.value = 'custom';
+    customInput.style.display = 'block';
+    customInput.value = text.trim();
+  } catch (err) {
+    errorBox.innerHTML = `<div class="error-box">Couldn't read that PDF: ${escapeHtml(err.message)}</div>`;
+  } finally {
+    pdfBtn.textContent = 'Upload PDF';
+  }
 });
 
 clearBtn.addEventListener('click', () => {
@@ -325,10 +425,6 @@ clearBtn.addEventListener('click', () => {
   status1.innerHTML = ''; status2.innerHTML = '';
   ['stamp1','stamp2','stamp3'].forEach(id => document.getElementById(id).classList.remove('on'));
 });
-
-function escapeHtml(str){
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
 
 function getInputText(){
   if (sampleSelect.value === 'custom') return customInput.value.trim();
@@ -360,10 +456,9 @@ function flagText(text){
 }
 
 function renderFlagged(text, issues){
-  // Build list of {start,end,type,term} spans, non-overlapping, longest-first priority
   let spans = [];
   issues.forEach(issue => {
-    if (issue.type === 'longsent') return; // handled separately by wrapping whole sentence
+    if (issue.type === 'longsent') return;
     let idx = text.toLowerCase().indexOf(issue.text.toLowerCase());
     while (idx !== -1) {
       spans.push({start: idx, end: idx + issue.text.length, type: issue.type, term: issue.term});
@@ -371,7 +466,6 @@ function renderFlagged(text, issues){
     }
   });
   spans.sort((a,b) => a.start - b.start || (b.end-b.start) - (a.end-a.start));
-  // remove overlaps, keep first (idiom/passive take priority visually if overlapping jargon)
   const filtered = [];
   let lastEnd = -1;
   spans.forEach(s => { if (s.start >= lastEnd) { filtered.push(s); lastEnd = s.end; } });
@@ -392,15 +486,22 @@ function renderFlagged(text, issues){
   return html;
 }
 
-// ---------- Anthropic API calls ----------
-const modelSelect = document.getElementById('modelSelect');
+// ---------- Sentence-level hover popup (placeholder NZSL video, styling only) ----------
+const SIGN_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V6a2 2 0 0 1 4 0v5"/><path d="M11 11V4a2 2 0 0 1 4 0v7"/><path d="M15 11V6a2 2 0 0 1 4 0v7"/><path d="M19 11v3a7 7 0 0 1-14 0v-1.5L3.5 9.8a1.6 1.6 0 0 1 2.2-2.3L7 9"/></svg>`;
 
+function renderPlainSentences(text){
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  return sentences.map((s, i) => {
+    const safe = escapeHtml(s.trim());
+    return `<span class="plain-sentence" tabindex="0" data-index="${i}">${safe} <span class="sign-popup"><span class="sign-video-frame">${SIGN_ICON_SVG}</span><span class="sign-popup-caption">NZSL video</span></span></span>`;
+  }).join(' ');
+}
+
+// ---------- API calls ----------
 async function callAI(systemPrompt, userText){
-  // Calls our own serverless proxy — either /api/claude or /api/gemini — which
-  // holds the real API key server-side. Both proxies return the same
-  // {content:[{text}]} shape so this parsing logic works for either provider.
-  const endpoint = modelSelect.value === 'gemini' ? "/api/gemini" : "/api/claude";
-  const response = await fetch(endpoint, {
+  // Calls our own /api/gemini serverless proxy, which holds the real API
+  // key server-side and returns {content:[{text}]}.
+  const response = await fetch("/api/gemini", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -411,7 +512,7 @@ async function callAI(systemPrompt, userText){
   });
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error("API request failed (" + endpoint + "): " + response.status + " " + errText.slice(0,200));
+    throw new Error("API request failed (/api/gemini): " + response.status + " " + errText.slice(0,200));
   }
   const data = await response.json();
   const text = (data.content || []).map(b => b.text || '').join('\n');
@@ -478,12 +579,11 @@ async function runPlainly(){
     document.getElementById('stamp3').classList.add('on');
 
     const finalText = checkResult.final_text || rewriteResult.plain_text;
-    plainDoc.textContent = finalText;
-    const modelLabel = modelSelect.value === 'gemini' ? 'Gemini Flash' : 'Claude Sonnet';
+    plainDoc.innerHTML = renderPlainSentences(finalText);
     status2.textContent = (checkResult.passed
       ? 'Passed self-check on first pass.'
       : `Self-check found and fixed ${checkResult.issues_found ? checkResult.issues_found.length : 0} residual issue(s).`)
-      + ` — via ${modelLabel}`;
+      + ' — via Gemini Flash · hover a sentence for its NZSL clip';
 
     // Step 4: change summary
     changesList.innerHTML = '';

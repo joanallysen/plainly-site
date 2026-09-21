@@ -1,0 +1,11 @@
+require('dotenv').config();
+const express = require('express');
+const path = require('path');
+const app = express();
+
+app.use(express.json({ limit: '2mb' }));
+app.post('/api/gemini', require('./api/gemini'));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Plainly running at http://localhost:${port}`));
