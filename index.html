@@ -56,6 +56,10 @@
     border-left:2px solid var(--teal);
     padding-left:14px;max-width:640px;line-height:1.6;
   }
+  .privacy-line{
+  font-size:13px;color:var(--text-muted);
+  max-width:640px;line-height:1.6;
+  }
 
   /* ---------- Controls ---------- */
   .controls{
@@ -82,6 +86,15 @@
   .run-btn:hover:not(:disabled){background:var(--teal-dark);color:var(--paper);}
   .run-btn:disabled{opacity:.5;cursor:not-allowed;}
   .clear-btn:hover{border-color:rgba(247,242,230,0.6);}
+  .copy-btn{
+    position:absolute;top:14px;right:100px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    background:transparent;color:#8a8272;
+    border:1px solid #d8d0bc;border-radius:4px;
+    padding:4px 10px;cursor:pointer;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  .copy-btn:hover{color:var(--teal-dark);border-color:var(--teal-dark);}
 
   textarea{
     width:100%;
@@ -134,7 +147,12 @@
   mark.longsent{background:rgba(0,0,0,0.05);}
 
   .placeholder{color:#9d9583;font-size:14px;font-style:italic;}
-
+  .check-original{
+    font-size:12px;color:#9d9583;
+    margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--paper-line);
+    line-height:1.5;
+  }
 
   /* ---------- Stamps ---------- */
   .stamps{
@@ -215,6 +233,7 @@
     <h1>Plainly turns dense<br>official text into <em>plain English.</em></h1>
     <p class="tagline">NZSL is New Zealand's third official language — and a completely different language from English, not English with hand signs. For many of the 3,000–4,000 Deaf New Zealanders who use it as a first language, English is a second language. Government forms, health notices and council letters are often hard to follow.</p>
     <p class="context-line">Plainly is a best attempt at applying published plain-language accessibility research — not a verified or finished solution. It has not yet been tested with Deaf or NZSL-first readers.</p>
+    <p class="privacy-line">Text you enter is sent to Google's Gemini API for processing — avoid pasting sensitive personal details like ID or account numbers.</p>
   </header>
 
   <div class="controls">
@@ -243,21 +262,23 @@
 
   <div class="split">
     <div class="card">
-      <span class="card-label">Step 1 — Original, flagged</span>
+      <span class="card-label">Steps 2–4 — Plain English</span>
       <div class="stamps">
         <div class="stamp-mark" id="stamp1">SCAN</div>
       </div>
       <div class="step-status" id="status1"></div>
-      <div class="doc-text" id="originalDoc"><span class="placeholder">Pick a sample and press "Run Plainly" to begin.</span></div>
+      <div class="doc-text" id="originalDoc"><span class="placeholder">Pick a sample, write your own sample, or upload PDF and press "Run Plainly" to begin.</span></div>
     </div>
     <div class="card">
       <span class="card-label">Steps 2–4 — Plain English</span>
+      <button class="copy-btn" id="copyBtn" type="button">Copy</button>
       <div class="stamps">
         <div class="stamp-mark" id="stamp2">RW</div>
         <div class="stamp-mark verified" id="stamp3">✓ CHK</div>
       </div>
       <div class="step-status" id="status2"></div>
       <div class="plain-text" id="plainDoc"><span class="placeholder">The plain-English version will appear here.</span></div>
+      <p class="check-original">This is AI-generated. Always check the original document before acting on it.</p>
     </div>
   </div>
 
@@ -306,6 +327,7 @@ const sampleSelect = document.getElementById('sampleSelect');
 const customInput = document.getElementById('customInput');
 const runBtn = document.getElementById('runBtn');
 const clearBtn = document.getElementById('clearBtn');
+const copyBtn = document.getElementById('copyBtn');
 const originalDoc = document.getElementById('originalDoc');
 const plainDoc = document.getElementById('plainDoc');
 const errorBox = document.getElementById('errorBox');
@@ -325,6 +347,8 @@ sampleSelect.addEventListener('change', () => {
 });
 sampleSelect.dispatchEvent(new Event('change'));
 
+
+// PDF settings
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -361,11 +385,25 @@ clearBtn.addEventListener('click', () => {
   ['stamp1','stamp2','stamp3'].forEach(id => document.getElementById(id).classList.remove('on'));
 });
 
+copyBtn.addEventListener('click', async () => {
+  const text = plainDoc.textContent.trim();
+  if (!text || plainDoc.querySelector('.placeholder')) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+  } catch (err) {
+    copyBtn.textContent = 'Couldn\'t copy';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+  }
+});
+
 function getInputText(){
   return customInput.value.trim();
 }
 
 // ---------- Step 1: client-side plain-language flagging ----------
+// this part is the rule based regex matching and then rendering the flagged words
 function flagText(text){
   const issues = [];
   const sentences = text.split(/(?<=[.!?])\s+/);
@@ -419,7 +457,10 @@ function renderFlagged(text, issues){
   html += escapeHtml(text.slice(cursor));
   return html;
 }
+
+
 // ---------- API calls ----------
+// the next step this is going to call Gemini to rewrite and do checking ater that
 async function callAI(systemPrompt, userText){
   // Calls our own /api/gemini serverless proxy, which holds the real API
   // key server-side and returns {content:[{text}]}.
@@ -434,7 +475,9 @@ async function callAI(systemPrompt, userText){
   });
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error("API request failed (/api/gemini): " + response.status + " " + errText.slice(0,200));
+    const err = new Error("API request failed: " + response.status + " " + errText.slice(0,200));
+    err.status = response.status;
+    throw err;
   }
   const data = await response.json();
   const text = (data.content || []).map(b => b.text || '').join('\n');
@@ -463,14 +506,26 @@ Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this s
 {"plain_text": "the full rewritten text", "changes": [{"issue": "short label like Passive voice / Idiom / Jargon / Long sentence", "original": "short original snippet", "fix": "short plain replacement"}]}
 Include 4 to 7 of the most important changes.`;
 
-const CHECK_SYSTEM = `You are Plainly's verification checker. You check a plain-English rewrite of an official NZ document against these rules: no passive voice, no idioms or legal filler, one idea per sentence, sentences under about 18 words, plain vocabulary, technical terms briefly explained inline.
+const CHECK_SYSTEM = `You are Plainly's verification checker. You check   a plain-English rewrite of an official NZ document against these rules: no passive voice, no idioms or legal filler, one idea per sentence, sentences under about 18 words, plain vocabulary, technical terms briefly explained inline.
 
 If you find any violations, fix them silently and return the corrected text.
 
 Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
 {"passed": true or false, "issues_found": ["short description", ...], "final_text": "the corrected final plain-English text"}`;
 
+// Just an error message
+function friendlyErrorMessage(err){
+  const status = err && err.status;
+  if (status === 429) return "Gemini is getting a lot of requests right now. Wait a minute and try again.";
+  if (status === 401 || status === 403) return "There's a problem with the server's API key. This needs to be fixed by the site owner.";
+  if (status === 400) return "Gemini couldn't process that request. Try a shorter piece of text.";
+  if (status >= 500) return "Gemini's server had a problem. Try again in a moment.";
+  if (err && err instanceof SyntaxError) return "Gemini's reply couldn't be read. This usually happens with very long documents — try a shorter one.";
+  if (err && err.message === 'Failed to fetch') return "Couldn't reach the server. Check that it's running, or check your internet connection.";
+  return "Something went wrong. Try again in a moment.";
+}
 // ---------- Orchestration ----------
+// the button run plainly run the function below and it goes step by step for all system
 async function runPlainly(){
   const inputText = getInputText();
   if (!inputText) { errorBox.innerHTML = '<div class="error-box">Please choose a sample or paste some text first.</div>'; return; }
@@ -507,7 +562,7 @@ async function runPlainly(){
       : `Self-check found and fixed ${checkResult.issues_found ? checkResult.issues_found.length : 0} residual issue(s).`)
       + ' — via Gemini Flash-Lite';
 
-    // Step 4: change summary
+    // Step 4: change summary, the what changed and why
     changesList.innerHTML = '';
     (rewriteResult.changes || []).forEach(c => {
       const row = document.createElement('div');
@@ -518,7 +573,8 @@ async function runPlainly(){
     changesPanel.style.display = 'block';
 
   } catch (err) {
-    errorBox.innerHTML = `<div class="error-box">Plainly hit an error calling the AI pipeline: ${escapeHtml(err.message)}. Try again — network calls can occasionally fail.</div>`;
+    console.error('Plainly pipeline error:', err);
+    errorBox.innerHTML = `<div class="error-box">${escapeHtml(friendlyErrorMessage(err))}</div>`;
     status2.textContent = '';
     plainDoc.innerHTML = '<span class="placeholder">The plain-English version will appear here.</span>';
   } finally {

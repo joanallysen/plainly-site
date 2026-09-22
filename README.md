@@ -121,11 +121,15 @@ Gemini is instructed to:
 - Test with Deaf and NZSL-first readers and revise based on their feedback
 
 
-If chosen a sample, immediately show the sample of the left box so user can see what the sample look like, and make it that user can edit those sample
-Extend the glossary to include more word, use free sources
-One line privacy notice on the page
-Check the original line on the right box
-Friendly error message
-Copy button on the output
+
+   One line privacy notice on the page
+   Check the original line on the right box
+   Friendly error message
+   Copy button on the output
 Remove long sentence legend
+Perhaps make the website itself with simpler term.
 Make a video on how the system work (personal)
+
+Future.
+Extend the glossary to include more word, use free sources like IRD
+Need to update the system prompt, and only include glossary found in rule based matching
