@@ -29,7 +29,10 @@ module.exports = async function handler(req, res) {
           contents: [{ role: 'user', parts: [{ text: userText }] }],
           generationConfig: {
             maxOutputTokens: max_tokens || 1000,
-            temperature: 0.4
+            temperature: 0.4,
+            // Forces the model to return raw JSON instead of relying on the
+            // system prompt's "respond with only JSON" instruction alone.
+            response_mime_type: 'application/json'
           }
         })
       }

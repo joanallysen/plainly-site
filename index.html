@@ -6,6 +6,7 @@
 <title>Plainly — Plain English for official documents</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{
     --ink:#1B2430;
@@ -55,6 +56,10 @@
     border-left:2px solid var(--teal);
     padding-left:14px;max-width:640px;line-height:1.6;
   }
+  .privacy-line{
+  font-size:13px;color:var(--text-muted);
+  max-width:640px;line-height:1.6;
+  }
 
   /* ---------- Controls ---------- */
   .controls{
@@ -81,9 +86,19 @@
   .run-btn:hover:not(:disabled){background:var(--teal-dark);color:var(--paper);}
   .run-btn:disabled{opacity:.5;cursor:not-allowed;}
   .clear-btn:hover{border-color:rgba(247,242,230,0.6);}
+  .copy-btn{
+    position:absolute;top:14px;right:100px;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    background:transparent;color:#8a8272;
+    border:1px solid #d8d0bc;border-radius:4px;
+    padding:4px 10px;cursor:pointer;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  .copy-btn:hover{color:var(--teal-dark);border-color:var(--teal-dark);}
 
   textarea{
-    width:100%;min-height:120px;
+    width:100%;
+    min-height:200px;
     font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.6;
     background:var(--ink-2);color:var(--paper);
     border:1px solid rgba(247,242,230,0.18);border-radius:4px;
@@ -132,6 +147,12 @@
   mark.longsent{background:rgba(0,0,0,0.05);}
 
   .placeholder{color:#9d9583;font-size:14px;font-style:italic;}
+  .check-original{
+    font-size:12px;color:#9d9583;
+    margin-top:14px;padding-top:12px;
+    border-top:1px solid var(--paper-line);
+    line-height:1.5;
+  }
 
   /* ---------- Stamps ---------- */
   .stamps{
@@ -212,6 +233,7 @@
     <h1>Plainly turns dense<br>official text into <em>plain English.</em></h1>
     <p class="tagline">NZSL is New Zealand's third official language — and a completely different language from English, not English with hand signs. For many of the 3,000–4,000 Deaf New Zealanders who use it as a first language, English is a second language. Government forms, health notices and council letters are often hard to follow.</p>
     <p class="context-line">Plainly is a best attempt at applying published plain-language accessibility research — not a verified or finished solution. It has not yet been tested with Deaf or NZSL-first readers.</p>
+    <p class="privacy-line">Text you enter is sent to Google's Gemini API for processing — avoid pasting sensitive personal details like ID or account numbers.</p>
   </header>
 
   <div class="controls">
@@ -221,15 +243,13 @@
       <option value="council">Sample: Council enforcement letter</option>
       <option value="custom">Paste my own text</option>
     </select>
-    <select id="modelSelect">
-      <option value="claude">Model: Claude Sonnet</option>
-      <option value="gemini">Model: Gemini Flash</option>
-    </select>
+    <input type="file" id="pdfInput" accept="application/pdf" style="display:none;">
+    <button class="clear-btn" id="pdfBtn">Upload PDF</button>
     <button class="run-btn" id="runBtn">Run Plainly →</button>
     <button class="clear-btn" id="clearBtn">Reset</button>
   </div>
 
-  <textarea id="customInput" style="display:none;" placeholder="Paste an official document here..."></textarea>
+  <textarea id="customInput" placeholder="Paste an official document here, or edit the sample..."></textarea>
 
   <div class="legend">
     <span><span class="dot" style="background:var(--stamp)"></span> flagged idiom / legalese</span>
@@ -242,21 +262,23 @@
 
   <div class="split">
     <div class="card">
-      <span class="card-label">Step 1 — Original, flagged</span>
+      <span class="card-label">Steps 2–4 — Plain English</span>
       <div class="stamps">
         <div class="stamp-mark" id="stamp1">SCAN</div>
       </div>
       <div class="step-status" id="status1"></div>
-      <div class="doc-text" id="originalDoc"><span class="placeholder">Pick a sample and press "Run Plainly" to begin.</span></div>
+      <div class="doc-text" id="originalDoc"><span class="placeholder">Pick a sample, write your own sample, or upload PDF and press "Run Plainly" to begin.</span></div>
     </div>
     <div class="card">
       <span class="card-label">Steps 2–4 — Plain English</span>
+      <button class="copy-btn" id="copyBtn" type="button">Copy</button>
       <div class="stamps">
         <div class="stamp-mark" id="stamp2">RW</div>
         <div class="stamp-mark verified" id="stamp3">✓ CHK</div>
       </div>
       <div class="step-status" id="status2"></div>
       <div class="plain-text" id="plainDoc"><span class="placeholder">The plain-English version will appear here.</span></div>
+      <p class="check-original">This is AI-generated. Always check the original document before acting on it.</p>
     </div>
   </div>
 
@@ -305,6 +327,7 @@ const sampleSelect = document.getElementById('sampleSelect');
 const customInput = document.getElementById('customInput');
 const runBtn = document.getElementById('runBtn');
 const clearBtn = document.getElementById('clearBtn');
+const copyBtn = document.getElementById('copyBtn');
 const originalDoc = document.getElementById('originalDoc');
 const plainDoc = document.getElementById('plainDoc');
 const errorBox = document.getElementById('errorBox');
@@ -312,9 +335,45 @@ const changesPanel = document.getElementById('changesPanel');
 const changesList = document.getElementById('changesList');
 const status1 = document.getElementById('status1');
 const status2 = document.getElementById('status2');
+const pdfInput = document.getElementById('pdfInput');
+const pdfBtn = document.getElementById('pdfBtn');
+
+function escapeHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 sampleSelect.addEventListener('change', () => {
-  customInput.style.display = sampleSelect.value === 'custom' ? 'block' : 'none';
+  customInput.value = sampleSelect.value === 'custom' ? '' : SAMPLES[sampleSelect.value];
+});
+sampleSelect.dispatchEvent(new Event('change'));
+
+
+// PDF settings
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+pdfBtn.addEventListener('click', () => pdfInput.click());
+pdfInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pdfBtn.textContent = 'Reading PDF…';
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    sampleSelect.value = 'custom';
+    customInput.style.display = 'block';
+    customInput.value = text.trim();
+  } catch (err) {
+    errorBox.innerHTML = `<div class="error-box">Couldn't read that PDF: ${escapeHtml(err.message)}</div>`;
+  } finally {
+    pdfBtn.textContent = 'Upload PDF';
+  }
 });
 
 clearBtn.addEventListener('click', () => {
@@ -326,16 +385,25 @@ clearBtn.addEventListener('click', () => {
   ['stamp1','stamp2','stamp3'].forEach(id => document.getElementById(id).classList.remove('on'));
 });
 
-function escapeHtml(str){
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+copyBtn.addEventListener('click', async () => {
+  const text = plainDoc.textContent.trim();
+  if (!text || plainDoc.querySelector('.placeholder')) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+  } catch (err) {
+    copyBtn.textContent = 'Couldn\'t copy';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+  }
+});
 
 function getInputText(){
-  if (sampleSelect.value === 'custom') return customInput.value.trim();
-  return SAMPLES[sampleSelect.value];
+  return customInput.value.trim();
 }
 
 // ---------- Step 1: client-side plain-language flagging ----------
+// this part is the rule based regex matching and then rendering the flagged words
 function flagText(text){
   const issues = [];
   const sentences = text.split(/(?<=[.!?])\s+/);
@@ -360,10 +428,9 @@ function flagText(text){
 }
 
 function renderFlagged(text, issues){
-  // Build list of {start,end,type,term} spans, non-overlapping, longest-first priority
   let spans = [];
   issues.forEach(issue => {
-    if (issue.type === 'longsent') return; // handled separately by wrapping whole sentence
+    if (issue.type === 'longsent') return;
     let idx = text.toLowerCase().indexOf(issue.text.toLowerCase());
     while (idx !== -1) {
       spans.push({start: idx, end: idx + issue.text.length, type: issue.type, term: issue.term});
@@ -371,7 +438,6 @@ function renderFlagged(text, issues){
     }
   });
   spans.sort((a,b) => a.start - b.start || (b.end-b.start) - (a.end-a.start));
-  // remove overlaps, keep first (idiom/passive take priority visually if overlapping jargon)
   const filtered = [];
   let lastEnd = -1;
   spans.forEach(s => { if (s.start >= lastEnd) { filtered.push(s); lastEnd = s.end; } });
@@ -392,15 +458,13 @@ function renderFlagged(text, issues){
   return html;
 }
 
-// ---------- Anthropic API calls ----------
-const modelSelect = document.getElementById('modelSelect');
 
+// ---------- API calls ----------
+// the next step this is going to call Gemini to rewrite and do checking ater that
 async function callAI(systemPrompt, userText){
-  // Calls our own serverless proxy — either /api/claude or /api/gemini — which
-  // holds the real API key server-side. Both proxies return the same
-  // {content:[{text}]} shape so this parsing logic works for either provider.
-  const endpoint = modelSelect.value === 'gemini' ? "/api/gemini" : "/api/claude";
-  const response = await fetch(endpoint, {
+  // Calls our own /api/gemini serverless proxy, which holds the real API
+  // key server-side and returns {content:[{text}]}.
+  const response = await fetch("/api/gemini", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -411,7 +475,9 @@ async function callAI(systemPrompt, userText){
   });
   if (!response.ok) {
     const errText = await response.text().catch(() => '');
-    throw new Error("API request failed (" + endpoint + "): " + response.status + " " + errText.slice(0,200));
+    const err = new Error("API request failed: " + response.status + " " + errText.slice(0,200));
+    err.status = response.status;
+    throw err;
   }
   const data = await response.json();
   const text = (data.content || []).map(b => b.text || '').join('\n');
@@ -440,14 +506,26 @@ Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this s
 {"plain_text": "the full rewritten text", "changes": [{"issue": "short label like Passive voice / Idiom / Jargon / Long sentence", "original": "short original snippet", "fix": "short plain replacement"}]}
 Include 4 to 7 of the most important changes.`;
 
-const CHECK_SYSTEM = `You are Plainly's verification checker. You check a plain-English rewrite of an official NZ document against these rules: no passive voice, no idioms or legal filler, one idea per sentence, sentences under about 18 words, plain vocabulary, technical terms briefly explained inline.
+const CHECK_SYSTEM = `You are Plainly's verification checker. You check   a plain-English rewrite of an official NZ document against these rules: no passive voice, no idioms or legal filler, one idea per sentence, sentences under about 18 words, plain vocabulary, technical terms briefly explained inline.
 
 If you find any violations, fix them silently and return the corrected text.
 
 Respond with ONLY valid JSON, no markdown fences, no preamble, in exactly this shape:
 {"passed": true or false, "issues_found": ["short description", ...], "final_text": "the corrected final plain-English text"}`;
 
+// Just an error message
+function friendlyErrorMessage(err){
+  const status = err && err.status;
+  if (status === 429) return "Gemini is getting a lot of requests right now. Wait a minute and try again.";
+  if (status === 401 || status === 403) return "There's a problem with the server's API key. This needs to be fixed by the site owner.";
+  if (status === 400) return "Gemini couldn't process that request. Try a shorter piece of text.";
+  if (status >= 500) return "Gemini's server had a problem. Try again in a moment.";
+  if (err && err instanceof SyntaxError) return "Gemini's reply couldn't be read. This usually happens with very long documents — try a shorter one.";
+  if (err && err.message === 'Failed to fetch') return "Couldn't reach the server. Check that it's running, or check your internet connection.";
+  return "Something went wrong. Try again in a moment.";
+}
 // ---------- Orchestration ----------
+// the button run plainly run the function below and it goes step by step for all system
 async function runPlainly(){
   const inputText = getInputText();
   if (!inputText) { errorBox.innerHTML = '<div class="error-box">Please choose a sample or paste some text first.</div>'; return; }
@@ -479,13 +557,12 @@ async function runPlainly(){
 
     const finalText = checkResult.final_text || rewriteResult.plain_text;
     plainDoc.textContent = finalText;
-    const modelLabel = modelSelect.value === 'gemini' ? 'Gemini Flash' : 'Claude Sonnet';
     status2.textContent = (checkResult.passed
       ? 'Passed self-check on first pass.'
       : `Self-check found and fixed ${checkResult.issues_found ? checkResult.issues_found.length : 0} residual issue(s).`)
-      + ` — via ${modelLabel}`;
+      + ' — via Gemini Flash-Lite';
 
-    // Step 4: change summary
+    // Step 4: change summary, the what changed and why
     changesList.innerHTML = '';
     (rewriteResult.changes || []).forEach(c => {
       const row = document.createElement('div');
@@ -496,7 +573,8 @@ async function runPlainly(){
     changesPanel.style.display = 'block';
 
   } catch (err) {
-    errorBox.innerHTML = `<div class="error-box">Plainly hit an error calling the AI pipeline: ${escapeHtml(err.message)}. Try again — network calls can occasionally fail.</div>`;
+    console.error('Plainly pipeline error:', err);
+    errorBox.innerHTML = `<div class="error-box">${escapeHtml(friendlyErrorMessage(err))}</div>`;
     status2.textContent = '';
     plainDoc.innerHTML = '<span class="placeholder">The plain-English version will appear here.</span>';
   } finally {
