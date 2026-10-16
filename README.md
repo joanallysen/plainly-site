@@ -1,5 +1,7 @@
 # Plainly
 
+https://github.com/user-attachments/assets/04b851c8-ace7-4583-ab36-bce1f20b8578
+
 **Plain English for official documents.**
 
 Plainly takes dense official text, such as a government letter, a tax notice or a council notice, and rewrites it in plain English. It was designed with Deaf New Zealanders in mind. NZSL (New Zealand Sign Language) is a language in its own right, and for many people who use it as a first language, English is a second language. Official documents are often hard to follow.
